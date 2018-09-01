@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from scipy.optimize import linprog
-from lpsolve import MinimumElement, Examine, ClosedLoop
+from transport_solve import MinimumElement, Examine, ClosedLoop
 
 def test_lp(_c, _a, _b):
     me = MinimumElement(_c, _a, _b)

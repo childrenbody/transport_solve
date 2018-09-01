@@ -88,7 +88,7 @@ class MinimumElement(Data):
                 print "index list haven't update"	
         else: 
             def only_one_nonzero(_list):
-                _all = map(lambda x: 1 if x != 0 else 0, _list)
+                _all = list(map(lambda x: 1 if x != 0 else 0, _list))
                 return True if sum(_all) == 1 else False
 
             if self.flag > 0:
@@ -110,13 +110,13 @@ class MinimumElement(Data):
         r, c = min_index
         if self.a_re[r] == 0:
             try:
-                self.im = filter(lambda x: x[0] != r, self.im)
+                self.im = list(filter(lambda x: x[0] != r, self.im))
             except:
                 print 'a constriant remove have a mistake'
 
         if self.b_re[c] == 0:
             try:
-                self.im = filter(lambda x: x[1] != c, self.im)
+                self.im = list(filter(lambda x: x[1] != c, self.im))
             except:
                 print 'b constriant remove have a mistake'
 
@@ -275,13 +275,14 @@ class ClosedLoop():
         self.directions = [up, down, left, right]
 
     def forward(self, index, enter):
+        enter_op = {1:0, 0:1, 2:3, 3:2}
         _path = []
         if enter != None:
             if self.tm[index[0]][index[1]] == 0:
                 if not self.arrival_boundary(self.directions[enter](*index)):
                     _path.append(self.directions[enter](*index))
+                    #print 'add {}'.format(self.directions[enter](*index))
             else:
-                enter_op = {1:0, 0:1, 2:3, 3:2}
                 temp = [_ for _ in range(4) if _ != enter_op[enter]]
                 #temp = [2, 3] if enter <= 1 else [0, 1]
                 for d in temp:
@@ -317,12 +318,15 @@ class ClosedLoop():
             return False
         if self.optimize_index not in node[1]:
             for i, j in node[1]:
+                print 'code: {}'.format(self.backward(node[0], (i, j)))
+                print 'enter: {}'.format((i, j))
                 forward_path = self.forward(index=(i, j), enter=self.backward(node[0], (i, j)))
                 if forward_path:
                     if self.go([(i, j), forward_path]):
                         self.go_path.append((i, j))
                         return True
                 else:
+                    print 'over'
                     return False
         else:
             return True
@@ -436,6 +440,7 @@ def dataset(v=0):
         [0. 1. 2.]
         '''
     elif v == 3:
+        # proudct = sale
         # need to optimize
         c = [3,11,3,10,1,9,2,8,7,4,10,5]
         a = [7,4,9]
@@ -447,6 +452,8 @@ def dataset(v=0):
         [0, 6, 0, 3]
         '''
     elif v == 4:
+        # product < sale
+        # need to optimize
         c = [22, 92, 22, 33, 91, 35, 2, 56, 13, 40, 52, 20, 3, 65, 97, 86, 46, 76, 39, 44, 80, 54, 7, 55]
         a = [25, 5, 54, 37, 95, 55]
         b = [88, 30, 72, 96]
