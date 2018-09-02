@@ -94,11 +94,12 @@ for i in range(100):
     #a = [25, 5, 54, 37, 95, 55]
     #b = [88, 30, 72, 96]
     lin = linporg_calc(c, a, b)
-    try:
-        lp = test_lp(c, a, b)
-        if all(lp == lin.x):
-            result += 1
-    except:
-        pass
+    if lin.status == 0:
+        try:
+            lp = test_lp(c, a, b)
+            if all(lp == lin.x):
+                result += 1
+        except Exception as e:
+            print e
 
 print 'result: {} / 100'.format(result)
