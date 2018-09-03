@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, gc
-sys.setrecursionlimit(100000000)
+sys.setrecursionlimit(1000000)
 
 class Data():
     def __init__(self, _c, _a, _b):
@@ -204,9 +204,9 @@ class Examine():
     def fill_ab_potential(self):
         for r, c in self.ind:
             if self.ap[r] != None and self.bp[c] == None:
-                self.bp[c] = self.em[r][c] - self.ap[r]
+                self.bp[c] = self.fm[r][c] - self.ap[r]
             elif self.ap[r] == None and self.bp[c] != None:
-                self.ap[r] = self.em[r][c] - self.bp[c]
+                self.ap[r] = self.fm[r][c] - self.bp[c]
             else:
                 pass
     
@@ -251,16 +251,17 @@ class Examine():
 
     def solve_examine(self):
         self.create_examine_matrix()
+        print 'init examine matrix:\n{}'.format(show_matrix(self.em))
         self.make_nonzero_element_index()
         self.fill_potential()
         self.calc_examine_matrix()
         min_index = self.find_minimum_index()
         if min_index:
-            #print 'position {} need to optimize'.format(min_index)
-            pass
+            print 'position {} need to optimize'.format(min_index)
+            #pass
         else:
-            #print 'good job!'
-            pass
+            print 'good job!'
+            #bpass
         return min_index
     
     @staticmethod
@@ -355,12 +356,12 @@ class ClosedLoop():
         _node = [self.optimize_index, self.forward(self.optimize_index, enter=None)]
         self.go(_node)
 
-    def create_unit(self, unit=1):
-        _min = 0xffffffff
-        for r, c in self.go_path[1:]:
-            if self.tm[r][c] < _min:
-                _min = self.tm[r][c]
-        self.unit = _min
+    def create_unit(self, unit):
+        # _min = 0xffffffff
+        # for r, c in self.go_path[1:]:
+        #     if self.tm[r][c] < _min:
+        #         _min = self.tm[r][c]
+        self.unit = unit
 
     def make_adjust_dict(self):
         def without_none(_dict):
@@ -387,6 +388,29 @@ class ClosedLoop():
         else:
             raise Exception('go path is wrong')
 
+    def examine_adjust_dict(self):
+        def count_more_than_zero(_dict):
+            if [v for v in _dict.values() if v < 0]:
+                return False
+            elif not [v for v in _dict.values() if v == 0]:
+                return False
+            return True
+
+        for r, c in self.go_path[1:]:
+            unit = self.tm[r][c]
+            self.create_unit(unit)
+            self.make_adjust_dict()
+            self.calc_node_transport()
+            if count_more_than_zero(self.node_transportion):
+                break
+
+    def calc_node_transport(self):
+        temp = dict()
+        for index, v in self.adjust_dict.items():
+            temp[index] = self.tm[index[0]][index[1]] + self.adjust_dict[index]
+        self.node_transportion = temp
+
+
     def create_new_transport_matrix(self):
         self.new_tm = matrix_copy(self.tm)
         for r in range(len(self.new_tm)):
@@ -406,9 +430,8 @@ class ClosedLoop():
             self.find_close_loop()
             print 'go path: {}'.format(self.go_path)
             self.go_path_drop_non()
-            self.create_unit()
             print 'go path: {}'.format(self.go_path)
-            self.make_adjust_dict()
+            self.examine_adjust_dict()
             self.create_new_transport_matrix()
             self.calc_new_fare()
         except Exception as e:
