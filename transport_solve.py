@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys, gc
-sys.setrecursionlimit(1000000)
+import sys
+sys.setrecursionlimit(100000000)
 
 class Data():
     def __init__(self, _c, _a, _b):
@@ -44,6 +44,16 @@ class Data():
                 #print 'reshape function have a mistake'
                 raise Exception('reshape function have a mistake')
             return row
+
+    def final_matrix(self, new_transport):
+        temp = []
+        for r in range(len(self.c)):
+            _row = []
+            for c in range(len(self.c[0])):
+                _row.append(new_transport[r][c])
+            temp.append(_row)
+        return temp
+
 
 class MinimumElement(Data):
     def make_index_list(self):
@@ -90,22 +100,24 @@ class MinimumElement(Data):
             else:
                 raise Exception("index list haven't update")
         else: 
-            def only_one_nonzero(_list):
+            def only_nonzero(_list):
                 _all = list(map(lambda x: 1 if x != 0 else 0, _list))
-                return True if sum(_all) == 1 else False
+                return True if sum(_all) == 0 else False
 
             if self.flag > 0:
-                if only_one_nonzero(self.a_re):
-                    r = self.a_re.index(sum(self.a_re))
-                    self.ct[r][-1] = sum(self.a_re)
-                else:
-                    raise Exception('a remained is error')
+                #if only_nonzero(self.b_re):
+                for i, v in enumerate(self.a_re):
+                    if v != 0:
+                        self.ct[i][-1] = self.a_re[i]
+                #else:
+                #    raise Exception('a remained is error')
             elif self.flag < 0:
-                if only_one_nonzero(self.b_re):
-                    c = self.b_re.index(sum(self.b_re))
-                    self.ct[-1][c] = sum(self.b_re)
-                else:
-                    raise Exception('b remained is error')
+                #if only_nonzero(self.a_re):
+                for i, v in enumerate(self.b_re):
+                    if v != 0:
+                        self.ct[-1][i] = self.b_re[i]
+                #else:
+                #    raise Exception('b remained is error')
             else:
                 pass
 
@@ -144,17 +156,23 @@ class MinimumElement(Data):
     def solve(self):
         try:
             self.new_fare_matrix()
+            #print 'fare matrix:\n{}'.format(show_matrix(self.cf))
             self.make_index_list()
             self.make_transport_matrix()
+            #print 'transport matrix:\n{}'.format(show_matrix(self.ct))
             min_ind = True
             while min_ind:
                 min_ind = self.find_minimum_element_index()
                 self.update_transport_matrix(min_ind)
+                #print 'transport matrix:\n{}'.format(show_matrix(self.ct))
+                #print 'a re: {}'.format(self.a_re)
+                #print 'b re: {}'.format(self.b_re)
                 if min_ind:
                     self.update_index_list(min_ind)
             self.final_transport_matrix()
         except Exception as e:
             print e
+            sys.exit(0)
 
     def calc_fare(self):
         try:
@@ -251,17 +269,17 @@ class Examine():
 
     def solve_examine(self):
         self.create_examine_matrix()
-        print 'init examine matrix:\n{}'.format(show_matrix(self.em))
+        #print 'init examine matrix:\n{}'.format(show_matrix(self.em))
         self.make_nonzero_element_index()
         self.fill_potential()
         self.calc_examine_matrix()
         min_index = self.find_minimum_index()
         if min_index:
-            print 'position {} need to optimize'.format(min_index)
-            #pass
+            #print 'position {} need to optimize'.format(min_index)
+            pass
         else:
-            print 'good job!'
-            #bpass
+            #print 'good job!'
+            pass
         return min_index
     
     @staticmethod
@@ -288,10 +306,8 @@ class ClosedLoop():
             if self.tm[index[0]][index[1]] == 0:
                 if not self.arrival_boundary(self.directions[enter](*index)):
                     _path.append(self.directions[enter](*index))
-                    #print 'add {}'.format(self.directions[enter](*index))
             else:
                 temp = [_ for _ in range(4) if _ != enter_op[enter]]
-                #temp = [2, 3] if enter <= 1 else [0, 1]
                 for d in temp:
                     if not self.arrival_boundary(self.directions[d](*index)):
                         _path.append(self.directions[d](*index))
@@ -320,7 +336,7 @@ class ClosedLoop():
         return code
 
     def go(self, node):
-        print '{} -> {}'.format(node[0], node[1])
+        #print '{} -> {}'.format(node[0], node[1])
         if node[1] == []:
             return False
         if self.optimize_index not in node[1]:
@@ -333,8 +349,8 @@ class ClosedLoop():
                         self.go_path.append((i, j))
                         return True
                 else:
-                    print 'over'
-                    return False
+                    #print 'over'
+                    pass
         else:
             return True
 
@@ -346,9 +362,6 @@ class ClosedLoop():
                     self.go_path.remove(temp[i])
                 except:
                     pass
-        # for r, c in self.go_path[1:]:
-        #     if self.tm[r][c] == 0:
-        #         self.go_path.remove((r, c))
 
     def find_close_loop(self):
         self.create_directions()
@@ -356,12 +369,7 @@ class ClosedLoop():
         _node = [self.optimize_index, self.forward(self.optimize_index, enter=None)]
         self.go(_node)
 
-    def create_unit(self, unit):
-        # _min = 0xffffffff
-        # for r, c in self.go_path[1:]:
-        #     if self.tm[r][c] < _min:
-        #         _min = self.tm[r][c]
-        self.unit = unit
+    def create_unit(self, unit): self.unit = unit
 
     def make_adjust_dict(self):
         def without_none(_dict):
@@ -410,7 +418,6 @@ class ClosedLoop():
             temp[index] = self.tm[index[0]][index[1]] + self.adjust_dict[index]
         self.node_transportion = temp
 
-
     def create_new_transport_matrix(self):
         self.new_tm = matrix_copy(self.tm)
         for r in range(len(self.new_tm)):
@@ -428,14 +435,15 @@ class ClosedLoop():
     def solve(self):
         try:
             self.find_close_loop()
-            print 'go path: {}'.format(self.go_path)
+            #print 'go path: {}'.format(self.go_path)
             self.go_path_drop_non()
-            print 'go path: {}'.format(self.go_path)
+            #print 'go path: {}'.format(self.go_path)
             self.examine_adjust_dict()
             self.create_new_transport_matrix()
             self.calc_new_fare()
         except Exception as e:
             print e
+            sys.exit(0)
 
 def matrix_copy(matrix):
     temp = []
@@ -511,6 +519,38 @@ def dataset(v=0):
         [ 0.  0.  0. 95.]
         [ 0.  0. 55.  0.]
         '''
+    elif v == 5:
+        # product < sale
+        c = [40, 24, 54, 67, 91, 88, 49, 98]
+        a = [90, 16]
+        b = [18, 33, 79, 36]
+    elif v == 6:
+        # product < sale
+        # need to optimize
+        c = [60, 43, 50, 8, 27, 16, 78, 52, 40, 46, 28, 33, 17, 7, 45, 81, 59, 67, 35, 62, 94, 72, 58, 90, 18, 65, 10, 41, 39, 90, 28, 51, 68, 26, 73, 72]
+        a = [70, 61, 22, 32, 70, 94]
+        b = [70, 99, 4, 85, 17, 82]
+        '''
+        result
+        [0, 0, 0, 32, 0, 38]
+        [0, 0, 0, 0, 17, 44]
+        [0, 22, 0, 0, 0, 0]
+        [4, 28, 0, 0, 0, 0]
+        [66, 0, 4, 0, 0, 0]
+        [0, 41, 0, 53, 0, 0]
+        '''
+    elif v == 7:
+        # product < sale
+        c = [86, 97, 94, 71, 29, 29, 73, 72, 11, 20, 36, 91, 6, 42, 44, 2, 32, 59, 64, 76, 31, 6, 38, 14]
+        a = [47, 16, 36, 59]
+        b = [24, 15, 2, 67, 41, 28]
+        '''
+        result
+        [0, 0, 0, 0, 41, 6]
+        [0, 0, 2, 14, 0, 0]
+        [24, 0, 0, 12, 0, 0]
+        [0, 0, 0, 41, 0, 18]
+        '''
     return c, a, b
     
 def test_min():
@@ -578,15 +618,17 @@ def test_closed():
         print 'fare: {}'.format(cl.fare)
 
 def main():
-    c, a, b = dataset(4)
+    c, a, b = dataset(7)
     me = MinimumElement(c, a, b)
+    print 'fare matrix:\n{}'.format(show_matrix(me.c))
     me.solve()
     me.calc_fare()
     me_fare = me.fare
-    print 'min transport matrix:\n{}'.format(show_matrix(me.final_ct))
+    print 'final min transport matrix:\n{}'.format(show_matrix(me.final_ct))
     print 'fare: {}'.format(me.fare)
     _ct = me.ct
     _fm = me.cf
+    print 'min transprot matrix:\n{}'.format(show_matrix(_ct))
     op_ind = True
     min_fare = me_fare
     while op_ind:
@@ -604,7 +646,6 @@ def main():
             print 'fare: {}'.format(cl.fare)
             if cl.fare < min_fare:
                 min_fare = cl.fare
-        gc.collect()
     print 'final transport matrix:\n{}'.format(show_matrix(_ct))
 
 if __name__ == '__main__':

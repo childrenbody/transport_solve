@@ -1,82 +1,69 @@
 # -*- coding: utf-8 -*-
+import numpy as np
+from scipy.optimize import linprog
+from transport_solve import Data, show_matrix
 
-def create_directions():
-    global directions
-    up = lambda x, y: (x - 1, y)
-    down = lambda x, y: (x + 1, y)
-    left = lambda x, y: (x, y - 1)
-    right = lambda x, y: (x, y + 1)
-    directions = [up, down, left, right]
-
-def arrival_boundary(matrix, index):
-    rows = len(matrix); columns = len(matrix[0])
-    r, c = index
-    if r < 0 or r >= rows or c < 0 or c >= columns:
-        return True
-    else:
-        return False
-
-def backward(enter_index, outer_index):
-    _er, _ec = enter_index
-    _or, _oc = outer_index
-    if _ec == _oc:
-        code = 0 if _er > _or else 1
-    else:
-        code = 2 if _ec > _oc else 3
-    return code
-
-def forward(matrix, index, enter):
-    enter_op = {1:0, 0:1, 2:3, 3:2}
-    _path = []
-    if enter != None:
-        if matrix[index[0]][index[1]] == 0:
-            if not arrival_boundary(matrix, directions[enter](*index)):
-                _path.append(directions[enter](*index))
-                #print 'add {}'.format(self.directions[enter](*index))
+def linporg_calc(_c, _a, _b):
+    def make_cof(size, r=None, c=None):
+        t1 = np.ones(size)
+        if r != None:
+            t2 = np.zeros((size[0], size[0]))
+            t2[r, 0] = 1
+            return np.dot(t2, t1)
+        elif c != None:
+            t3 = np.zeros(size)
+            t3[:, c] = 1
+            return t3
         else:
-            temp = [_ for _ in range(4) if _ != enter_op[enter]]
-            #temp = [2, 3] if enter <= 1 else [0, 1]
-            for d in temp:
-                if not arrival_boundary(matrix, directions[d](*index)):
-                    _path.append(directions[d](*index))
-    else:
-        for func in directions:
-            if not arrival_boundary(matrix, func(*index)):
-                _path.append(func(*index))
-    return _path
+            print '请输入正确参数'
 
-def go(node):
-    print '{} -> {}'.format(node[0], node[1])
-    if node[1] == []:
-        return False
-    if optimize_index not in node[1]:
-        for i, j in node[1]:
-            print 'code: {}'.format(backward(node[0], (i, j)))
-            print 'enter: {}'.format((i, j))
-            forward_path = forward(tm, index=(i, j), enter=backward(node[0], (i, j)))
-            if forward_path:
-                if go([(i, j), forward_path]):
-                    go_path.append((i, j))
-                    return True
-            else:
-                print 'over'
-                return False
-    else:
-        return True
+    def make_constriant(cm, a, b):
+        # produce constraint
+        if len(a)  == cm.shape[0]:
+            A = []
+            for r in range(len(a)):
+                teq = make_cof(cm.shape, r=r, c=None)
+                A.append(teq.flatten())
+            A = np.array(A)    
+        else:
+            print "produce constriant don't match transport matrix"
+            return
+        # sale constraint
+        if len(b) == cm.shape[1]:
+            B = []
+            for c in range(len(b)):
+                tub = make_cof(cm.shape, r=None, c=c)
+                B.append(tub.flatten())
+            B = np.array(B)
+        else:
+            print "sale constriant don't match transport matrix" 
+            return
+        return A, B
 
-def show_matrix(matrix): 
-    string = list(map(str, matrix))
-    res = '\n'.join(string)
+    def Lpsolve(cm, A, a, B, b):
+        bounds = [(0, None) for _ in range(len(cm.flatten()))]
+        if np.sum(a) == np.sum(b):
+            b_eq = np.hstack((a, b))
+            a_eq = np.vstack((A, B))
+            res = linprog(cm.flatten(), A_eq=a_eq, b_eq=b_eq, bounds=bounds)
+        elif np.sum(a) < np.sum(b):
+            res = linprog(cm.flatten(), A_ub=B, b_ub=b, A_eq=A, b_eq=a, bounds=bounds)
+        elif np.sum(a) > np.sum(b):
+            res = linprog(cm.flatten(), A_ub=A, b_ub=a, A_eq=B, b_eq=b, bounds=bounds)
+        return res
+
+    cm = np.asarray(c)
+    a = np.asarray(_a)
+    b = np.asarray(_b)
+    cm = cm.reshape((a.shape[0], b.shape[0]))
+    A, B = make_constriant(cm, a, b)
+    res = Lpsolve(cm, A, a, B, b)
     return res
 
-tm = [[0, 0, 12, 13]]
-
-# optimize_index = (2, 1)
-
-# print show_matrix(tm)
-# create_directions()
-# go_path = [optimize_index]
-# go([go_path[0], forward(tm, optimize_index, enter=None)])
-# print 'go path: {}'.format(go_path)
-
-
+c = [86, 97, 94, 71, 29, 29, 73, 72, 11, 20, 36, 91, 6, 42, 44, 2, 32, 59, 64, 76, 31, 6, 38, 14]
+a = [47, 16, 36, 59]
+b = [24, 15, 2, 67, 41, 28]
+res = linporg_calc(c, a, b)
+data = Data.reshape(res.x.astype(int).tolist(), a, b)
+print 'final matrix:\n{}'.format(show_matrix(data))
+print 'fare: {}'.format(res.fun)

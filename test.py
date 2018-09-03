@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from scipy.optimize import linprog
-from transport_solve import MinimumElement, Examine, ClosedLoop
+from transport_solve import MinimumElement, Examine, ClosedLoop, show_matrix, Data
 
 def test_lp(_c, _a, _b):
+    data = Data(_c, _a, _b)
     me = MinimumElement(_c, _a, _b)
     me.solve()
     me.calc_fare()
@@ -24,7 +25,7 @@ def test_lp(_c, _a, _b):
                 break
             if cl.fare < min_fare:
                 min_fare = cl.fare
-    return np.array(_ct).flatten().tolist()
+    return np.array(data.final_matrix(_ct)).flatten().tolist()
 
 def linporg_calc(_c, _a, _b):
     def make_cof(size, r=None, c=None):
@@ -90,16 +91,18 @@ for i in range(100):
     c = np.random.randint(1, 100, rows * columns).tolist()
     a = np.random.randint(1, 100, rows).tolist()
     b = np.random.randint(1, 100, columns).tolist()
-    #c = [22, 92, 22, 33, 91, 35, 2, 56, 13, 40, 52, 20, 3, 65, 97, 86, 46, 76, 39, 44, 80, 54, 7, 55]
-    #a = [25, 5, 54, 37, 95, 55]
-    #b = [88, 30, 72, 96]
+
     lin = linporg_calc(c, a, b)
     if lin.status == 0:
-        try:
-            lp = test_lp(c, a, b)
-            if all(lp == lin.x):
-                result += 1
-        except Exception as e:
-            print e
+        lp = test_lp(c, a, b)
+        #print lp
+        #print lin.x.tolist()
+        if (lp == lin.x).all():
+            result += 1
+        else:
+            print "c matrix:\n{}".format(show_matrix(Data.reshape(c, a, b)))
+            print "a: {}".format(a)
+            print 'b: {}'.format(b)
+
 
 print 'result: {} / 100'.format(result)
