@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import linprog
 from transport_solve import Data, show_matrix
 
+
 def linporg_calc(_c, _a, _b):
     def make_cof(size, r=None, c=None):
         t1 = np.ones(size)
@@ -19,12 +20,12 @@ def linporg_calc(_c, _a, _b):
 
     def make_constriant(cm, a, b):
         # produce constraint
-        if len(a)  == cm.shape[0]:
+        if len(a) == cm.shape[0]:
             A = []
             for r in range(len(a)):
                 teq = make_cof(cm.shape, r=r, c=None)
                 A.append(teq.flatten())
-            A = np.array(A)    
+            A = np.array(A)
         else:
             print "produce constriant don't match transport matrix"
             return
@@ -36,7 +37,7 @@ def linporg_calc(_c, _a, _b):
                 B.append(tub.flatten())
             B = np.array(B)
         else:
-            print "sale constriant don't match transport matrix" 
+            print "sale constriant don't match transport matrix"
             return
         return A, B
 
@@ -47,9 +48,11 @@ def linporg_calc(_c, _a, _b):
             a_eq = np.vstack((A, B))
             res = linprog(cm.flatten(), A_eq=a_eq, b_eq=b_eq, bounds=bounds)
         elif np.sum(a) < np.sum(b):
-            res = linprog(cm.flatten(), A_ub=B, b_ub=b, A_eq=A, b_eq=a, bounds=bounds)
+            res = linprog(cm.flatten(), A_ub=B, b_ub=b,
+                          A_eq=A, b_eq=a, bounds=bounds)
         elif np.sum(a) > np.sum(b):
-            res = linprog(cm.flatten(), A_ub=A, b_ub=a, A_eq=B, b_eq=b, bounds=bounds)
+            res = linprog(cm.flatten(), A_ub=A, b_ub=a,
+                          A_eq=B, b_eq=b, bounds=bounds)
         return res
 
     cm = np.asarray(c)
@@ -60,9 +63,9 @@ def linporg_calc(_c, _a, _b):
     res = Lpsolve(cm, A, a, B, b)
     return res
 
-c = [86, 97, 94, 71, 29, 29, 73, 72, 11, 20, 36, 91, 6, 42, 44, 2, 32, 59, 64, 76, 31, 6, 38, 14]
-a = [47, 16, 36, 59]
-b = [24, 15, 2, 67, 41, 28]
+c = [8, 11, 16, 90, 2, 80, 75, 84, 42, 40, 23, 68, 7, 64, 18, 40]
+a = [73, 47]
+b = [60, 85, 35, 2, 73, 78, 46, 84]
 res = linporg_calc(c, a, b)
 data = Data.reshape(res.x.astype(int).tolist(), a, b)
 print 'final matrix:\n{}'.format(show_matrix(data))

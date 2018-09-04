@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import linprog
 from transport_solve import MinimumElement, Examine, ClosedLoop, show_matrix, Data
 
+
 def test_lp(_c, _a, _b):
     data = Data(_c, _a, _b)
     me = MinimumElement(_c, _a, _b)
@@ -27,14 +28,15 @@ def test_lp(_c, _a, _b):
                 min_fare = cl.fare
     return np.array(data.final_matrix(_ct)).flatten().tolist()
 
+
 def linporg_calc(_c, _a, _b):
     def make_cof(size, r=None, c=None):
         t1 = np.ones(size)
-        if r != None:
+        if r is not None:
             t2 = np.zeros((size[0], size[0]))
             t2[r, 0] = 1
             return np.dot(t2, t1)
-        elif c != None:
+        elif c is not None:
             t3 = np.zeros(size)
             t3[:, c] = 1
             return t3
@@ -43,12 +45,12 @@ def linporg_calc(_c, _a, _b):
 
     def make_constriant(cm, a, b):
         # produce constraint
-        if len(a)  == cm.shape[0]:
+        if len(a) == cm.shape[0]:
             A = []
             for r in range(len(a)):
                 teq = make_cof(cm.shape, r=r, c=None)
                 A.append(teq.flatten())
-            A = np.array(A)    
+            A = np.array(A)
         else:
             print("produce constriant don't match transport matrix")
             return
@@ -71,9 +73,11 @@ def linporg_calc(_c, _a, _b):
             a_eq = np.vstack((A, B))
             res = linprog(cm.flatten(), A_eq=a_eq, b_eq=b_eq, bounds=bounds)
         elif np.sum(a) < np.sum(b):
-            res = linprog(cm.flatten(), A_ub=B, b_ub=b, A_eq=A, b_eq=a, bounds=bounds)
+            res = linprog(cm.flatten(), A_ub=B, b_ub=b,
+                          A_eq=A, b_eq=a, bounds=bounds)
         elif np.sum(a) > np.sum(b):
-            res = linprog(cm.flatten(), A_ub=A, b_ub=a, A_eq=B, b_eq=b, bounds=bounds)
+            res = linprog(cm.flatten(), A_ub=A, b_ub=a,
+                          A_eq=B, b_eq=b, bounds=bounds)
         return res
 
     cm = np.asarray(c)
@@ -84,7 +88,9 @@ def linporg_calc(_c, _a, _b):
     res = Lpsolve(cm, A, a, B, b)
     return res
 
+
 result = 0
+
 for i in range(100):
     print 'iter: {}'.format(i)
     rows, columns = np.random.randint(2, 10, 2).tolist()
@@ -95,8 +101,8 @@ for i in range(100):
     lin = linporg_calc(c, a, b)
     if lin.status == 0:
         lp = test_lp(c, a, b)
-        #print lp
-        #print lin.x.tolist()
+        # print lp
+        # print lin.x.tolist()
         if (lp == lin.x).all():
             result += 1
         else:
