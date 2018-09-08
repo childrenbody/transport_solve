@@ -1,24 +1,35 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.setrecursionlimit(100000000)
+sys.setrecursionlimit(100000000) # 设置最大递归深度，Python默认是1000
 
 
 class Data():
-
+    '''数据类，功能如下：
+    1、一维列表变成二维矩阵
+    2、根据产销是否平衡来适当的增加一列（虚拟销地）或一行（虚拟产地）
+    3、根据转运结果，如果在2中有增加列或行，删除该列或行，输出最终的转运结果'''
     def __init__(self, _c, _a, _b):
+        # 把一维列表构造成二维矩阵
         self.c = self.reshape(_c, _a, _b)
+        # 产量约束条件
         self.a = _a[:]
+        # 销量约束条件
         self.b = _b[:]
+        # 产销平衡的标志位，如flag>0，产大于销，否则相反。
         self.flag = sum(_a) - sum(_b)
+        # 经过划分后，产量和销量的剩余
         self.a_re = _a[:]
         self.b_re = _b[:]
 
     def new_fare_matrix(self):
+        '''如果产销不平衡，一列（虚拟销地）或一行（虚拟产地）'''
         res = matrix_copy(self.c)
+        # 产大于销，在末尾增加一列
         if self.flag > 0:
             for r in range(len(res)):
                 res[r].append(0)
             self.b_re.append(abs(self.flag))
+        # 销大于产，在末尾增加一行
         elif self.flag < 0:
             res.append([0] * len(res[0]))
             self.a_re.append(abs(self.flag))
@@ -28,14 +39,12 @@ class Data():
 
     @staticmethod
     def reshape(_c, _a, _b):
+        '''把一维列表转成二维矩阵'''
         al = len(_a)
         bl = len(_b)
         cl = len(_c)
         if al * bl != cl:
-            # print 'cannot reshape array of size {} in shape
-            # ({},{})'.format(cl, al, bl)
-            raise Exception(
-                'cannot reshape array of size {} in shape ({},{})'.format(cl, al, bl))
+            raise Exception('cannot reshape array of size {} in shape ({},{})'.format(cl, al, bl))
         else:
             row = []
             for i, v in enumerate(_c):
@@ -47,11 +56,11 @@ class Data():
                 else:
                     column.append(v)
             if len(row) != al:
-                # print 'reshape function have a mistake'
                 raise Exception('reshape function have a mistake')
             return row
 
     def final_matrix(self, new_transport):
+        '''根据转运结果，如果在2中有增加列或行，删除该列或行，输出最终的转运结果'''
         temp = []
         for r in range(len(self.c)):
             _row = []
@@ -62,8 +71,10 @@ class Data():
 
 
 class MinimumElement(Data):
+    '''最小元素法：优先考虑具有最小运价的供销业务'''
 
     def make_index_list(self):
+        '''构造矩阵中每个元素索引的列表'''
         rows = len(self.c)
         columns = len(self.c[0])
         index_list = []
@@ -73,6 +84,7 @@ class MinimumElement(Data):
         self.im = index_list
 
     def make_transport_matrix(self):
+        '''构造零矩阵'''
         rows = len(self.cf)
         columns = len(self.cf[0])
         res = []
@@ -82,6 +94,7 @@ class MinimumElement(Data):
         self.ct = res
 
     def find_minimum_element_index(self):
+        '''找到最小元素的索引'''
         _min = 0xffffffff
         min_index = None
         for r, c in self.im:
@@ -91,9 +104,12 @@ class MinimumElement(Data):
         return min_index
 
     def update_transport_matrix(self, min_index):
+        '''更新转运矩阵'''
         if min_index:
             r, c = min_index
+            # 如果该行的产量与该列的销量都不为零
             if self.a_re[r] != 0 and self.b_re[c] != 0:
+                # 如果产量较少，该点的最大运输量等于产量，否则等于销量
                 if self.a_re[r] >= self.b_re[c]:
                     self.ct[r][c] = self.b_re[c]
                     self.a_re[r] -= self.b_re[c]
@@ -107,28 +123,22 @@ class MinimumElement(Data):
             else:
                 raise Exception("index list haven't update")
         else:
-            def only_nonzero(_list):
-                _all = list(map(lambda x: 1 if x != 0 else 0, _list))
-                return True if sum(_all) == 0 else False
-
+            # 当没有最小元素的索引
             if self.flag > 0:
-                # if only_nonzero(self.b_re):
+                # 产量大于销量，此时产量还有剩余，分配进虚拟销地中
                 for i, v in enumerate(self.a_re):
                     if v != 0:
                         self.ct[i][-1] = self.a_re[i]
-                # else:
-                #    raise Exception('a remained is error')
             elif self.flag < 0:
-                # if only_nonzero(self.a_re):
+                # 销量大于产量，此时销量还有剩余，分配进虚拟产地中
                 for i, v in enumerate(self.b_re):
                     if v != 0:
                         self.ct[-1][i] = self.b_re[i]
-                # else:
-                #    raise Exception('b remained is error')
             else:
                 pass
 
     def update_index_list(self, min_index):
+        '''更新索引列表，把产量为零的行和销量为零的列删除'''
         r, c = min_index
         if self.a_re[r] == 0:
             try:
@@ -142,25 +152,8 @@ class MinimumElement(Data):
             except:
                 raise Exception('b constriant remove have a mistake')
 
-    def sum_transport(self):
-        res = 0
-        for r in range(len(self.ct)):
-            for c in range(len(self.ct[0])):
-                res += self.ct[r][c]
-        return res
-
-    def final_transport_matrix(self):
-        rows = len(self.c)
-        columns = len(self.c[0])
-        res = []
-        for r in range(rows):
-            _row = []
-            for c in range(columns):
-                _row.append(self.ct[r][c])
-            res.append(_row)
-        self.final_ct = res
-
     def solve(self):
+        '''运行整个最小元素法，接受Exception错误，并打印信息，然后停止程序'''
         try:
             self.new_fare_matrix()
             # print 'fare matrix:\n{}'.format(show_matrix(self.cf))
@@ -176,16 +169,16 @@ class MinimumElement(Data):
                 # print 'b re: {}'.format(self.b_re)
                 if min_ind:
                     self.update_index_list(min_ind)
-            self.final_transport_matrix()
+            self.final_ct = self.final_matrix(self.ct)
         except Exception as e:
             print e
-            sys.exit(0)
+            sys.exit(1)
 
     def calc_fare(self):
         try:
             tm = self.final_ct
         except:
-            self.final_transport_matrix()
+            self.final_ct = self.find_matrix(self.ct)
             tm = self.final_ct
         fare = 0
         for r in range(len(self.c)):
@@ -199,13 +192,14 @@ class Vogel(Data):
 
 
 class Examine():
-
+    '''位势法：检验是否是最优解'''
     def __init__(self, transport_matrix, fare_matrix):
-        self.tm = matrix_copy(transport_matrix)
-        self.fm = matrix_copy(fare_matrix)
+        self.tm = matrix_copy(transport_matrix) # 初始运输矩阵
+        self.fm = matrix_copy(fare_matrix)      # 费用矩阵
         self.init_ab_potential()
 
     def create_examine_matrix(self):
+        '''构造保存检验数的矩阵，未计算出的元素用None代替'''
         temp = []
         for r in range(len(self.tm)):
             _row = []
@@ -218,10 +212,12 @@ class Examine():
         self.em = temp
 
     def init_ab_potential(self):
+        '''初始化行和列的势，没有用None代替'''
         self.ap = [None] * len(self.tm)
         self.bp = [None] * len(self.tm[0])
 
     def make_nonzero_element_index(self):
+        '''记录运输矩阵中非零元素的索引'''
         index_list = []
         for r in range(len(self.tm)):
             for c in range(len(self.tm[0])):
@@ -230,6 +226,7 @@ class Examine():
         self.ind = index_list
 
     def fill_ab_potential(self):
+        '''根据非零元素的运费，计算行和列的势'''
         for r, c in self.ind:
             if self.ap[r] is not None and self.bp[c] is None:
                 self.bp[c] = self.fm[r][c] - self.ap[r]
@@ -239,6 +236,7 @@ class Examine():
                 pass
 
     def init_potential(self):
+        '''初始化行和列的势，在该列填零，然后在该行填该点的运费'''
         for r, c in self.ind:
             if self.ap[r] is None and self.bp[c] is None:
                 self.bp[c] = 0
@@ -246,25 +244,30 @@ class Examine():
                 break
 
     def fill_potential(self):
+        '''计算行和列中未计算的势'''
         _a = self.find_none_element(self.ap)
         _b = self.find_none_element(self.bp)
         last = sum(_a + _b)
+        # 如果行和列的势中还有None，就一直循环
         while sum(_a + _b) > 0:
             self.fill_ab_potential()
             _a = self.find_none_element(self.ap)
-            _b = self.find_none_element(self.bp)
+            _b = self.find_none_element(self.bp)            
             if sum(_a + _b) < last:
                 last = sum(_a + _b)
             else:
+                # 如果行和列的势中None数量跟上一次循环相比并没有变化，就给其中一个None，采用初始化策略
                 self.init_potential()
 
     def calc_examine_matrix(self):
+        '''计算检验矩阵中未计算的检验数'''
         for r in range(len(self.em)):
             for c in range(len(self.em[0])):
                 if (r, c) not in self.ind:
                     self.em[r][c] = self.fm[r][c] - (self.ap[r] + self.bp[c])
 
     def find_minimum_index(self):
+        '''找到检验矩阵中小于零元素的索引，如果有多个，取最小的，如果相等取运费最小的'''
         _min = 0
         min_index = None
         for r in range(len(self.em)):
@@ -278,6 +281,7 @@ class Examine():
         return min_index
 
     def solve_examine(self):
+        '''运用位势法进行检验，并返回需要优化元素的索引'''
         self.create_examine_matrix()
         # print 'init examine matrix:\n{}'.format(show_matrix(self.em))
         self.make_nonzero_element_index()
@@ -294,6 +298,7 @@ class Examine():
 
     @staticmethod
     def find_none_element(_list):
+        '''返回列表中元素是否等于None的列表'''
         return list(map(lambda x: 1 if x is None else 0, _list))
 
 
