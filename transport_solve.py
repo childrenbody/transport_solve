@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.setrecursionlimit(100000000) # 设置最大递归深度，Python默认是1000
+import sys, copy
+sys.setrecursionlimit(100000000)  # 设置最大递归深度，Python默认是1000
 
 
 class Data():
@@ -22,8 +22,8 @@ class Data():
         self.b_re = _b[:]
 
     def new_fare_matrix(self):
-        '''如果产销不平衡，一列（虚拟销地）或一行（虚拟产地）'''
-        res = matrix_copy(self.c)
+        '''如果产销不平衡添加一列（虚拟销地）或一行（虚拟产地）'''
+        res = copy.copy(self.c)
         # 产大于销，在末尾增加一列
         if self.flag > 0:
             for r in range(len(res)):
@@ -175,6 +175,7 @@ class MinimumElement(Data):
             sys.exit(1)
 
     def calc_fare(self):
+        '''计算总的运费'''
         try:
             tm = self.final_ct
         except:
@@ -194,8 +195,8 @@ class Vogel(Data):
 class Examine():
     '''位势法：检验是否是最优解'''
     def __init__(self, transport_matrix, fare_matrix):
-        self.tm = matrix_copy(transport_matrix) # 初始运输矩阵
-        self.fm = matrix_copy(fare_matrix)      # 费用矩阵
+        self.tm = copy.copy(transport_matrix)  # 初始运输矩阵
+        self.fm = copy.copy(fare_matrix)       # 费用矩阵
         self.init_ab_potential()
 
     def create_examine_matrix(self):
@@ -252,7 +253,7 @@ class Examine():
         while sum(_a + _b) > 0:
             self.fill_ab_potential()
             _a = self.find_none_element(self.ap)
-            _b = self.find_none_element(self.bp)            
+            _b = self.find_none_element(self.bp)
             if sum(_a + _b) < last:
                 last = sum(_a + _b)
             else:
@@ -303,13 +304,14 @@ class Examine():
 
 
 class ClosedLoop():
-
+    '''寻找待优化位置的闭合回路，然后进行调整，返回优化后的矩阵'''
     def __init__(self, transport_matrix, fare_matrix, optimize_index):
-        self.tm = matrix_copy(transport_matrix)
-        self.fm = matrix_copy(fare_matrix)
+        self.tm = copy.copy(transport_matrix)
+        self.fm = copy.copy(fare_matrix)
         self.optimize_index = optimize_index
 
     def create_directions(self):
+        '''闭合回路的行走方向，总共有上下左右四个方向'''
         up = lambda x, y: (x - 1, y)
         down = lambda x, y: (x + 1, y)
         left = lambda x, y: (x, y - 1)
@@ -317,24 +319,29 @@ class ClosedLoop():
         self.directions = [up, down, left, right]
 
     def forward(self, index, enter):
+        '''返回该点的下一步可前进方向的列表'''
         enter_op = {1: 0, 0: 1, 2: 3, 3: 2}
         _path = []
         if enter is not None:
+            # 如果该点的值为零，则直走
             if self.tm[index[0]][index[1]] == 0:
                 if not self.arrival_boundary(self.directions[enter](*index)):
                     _path.append(self.directions[enter](*index))
             else:
+                # 如果该点的值不为零，则除了不能往回走，其他方向都可以
                 temp = [_ for _ in range(4) if _ != enter_op[enter]]
                 for d in temp:
                     if not self.arrival_boundary(self.directions[d](*index)):
                         _path.append(self.directions[d](*index))
         else:
+            # 如果该点是起点，则四个方向都可走
             for func in self.directions:
                 if not self.arrival_boundary(func(*index)):
                     _path.append(func(*index))
         return _path
 
     def arrival_boundary(self, index):
+        '''判断该点是否达到边界'''
         rows = len(self.tm)
         columns = len(self.tm[0])
         r, c = index
@@ -345,6 +352,7 @@ class ClosedLoop():
 
     @staticmethod
     def backward(enter_index, outer_index):
+        '''上一个点是从哪个方向到达该点的'''
         _er, _ec = enter_index
         _or, _oc = outer_index
         if _ec == _oc:
@@ -354,6 +362,7 @@ class ClosedLoop():
         return code
 
     def go(self, node):
+        '''递归遍历查找回路'''
         # print '{} -> {}'.format(node[0], node[1])
         if node[1] == []:
             return False
@@ -374,6 +383,7 @@ class ClosedLoop():
             return True
 
     def go_path_drop_non(self):
+        '''只保留闭合回路的顶点'''
         temp = self.go_path[:] + [self.go_path[0]]
         for i in range(1, len(temp) - 1):
             if self.backward(temp[i - 1], temp[i]) == self.backward(temp[i], temp[i + 1]):
@@ -383,16 +393,21 @@ class ClosedLoop():
                     pass
 
     def find_close_loop(self):
+        '''寻找闭合回路'''
         self.create_directions()
         self.go_path = [self.optimize_index]
         _node = [self.optimize_index, self.forward(
             self.optimize_index, enter=None)]
         self.go(_node)
 
-    def create_unit(self, unit): self.unit = unit
+    def create_unit(self, unit): 
+        '''确定最小调运量 '''
+        self.unit = unit
 
     def make_adjust_dict(self):
+        '''确定各个顶点的转运量'''
         def without_none(_dict):
+            # 确定是否有None值
             temp = [v for k, v in _dict.items() if v is None]
             return True if len(temp) == 0 else False
 
@@ -402,28 +417,31 @@ class ClosedLoop():
             while not without_none(self.adjust_dict):
                 for index, v in self.adjust_dict.items():
                     if v is None:
+                        # 确保行和列的运输量守恒
                         _row = [_v for _i, _v in self.adjust_dict.items() if _v is not None and _i[0] == index[0]]
                         _column = [_v for _i, _v in self.adjust_dict.items() if _v is not None and _i[1] == index[1]]
                         if _row:
-                            # if sum(_row) != 0:
                             self.adjust_dict[index] = 0 - sum(_row)
                         elif _column:
-                            # if sum(_column) != 0:
                             self.adjust_dict[index] = 0 - sum(_column)
                         else:
                             pass
-                            # raise Exception('adjustment make a mistake')
         else:
             raise Exception('go path is wrong')
 
     def examine_adjust_dict(self):
+        '''生成调运方案'''
         def count_more_than_zero(_dict):
+            '''检验调运方案是否合理'''
+            # 重新调配之后不能有负值
             if [v for v in _dict.values() if v < 0]:
                 return False
+            # 重新调配之后一定会有一个及以上为零的元素
             elif not [v for v in _dict.values() if v == 0]:
                 return False
             return True
 
+        # 以每个点作为最小调运量，生成调运方案，如果该方案合理则采用
         for r, c in self.go_path[1:]:
             unit = self.tm[r][c]
             self.create_unit(unit)
@@ -433,19 +451,22 @@ class ClosedLoop():
                 break
 
     def calc_node_transport(self):
+        '''根据调运方案重新计算闭回路上各个顶点的运输量'''
         temp = dict()
         for index, v in self.adjust_dict.items():
             temp[index] = self.tm[index[0]][index[1]] + self.adjust_dict[index]
         self.node_transportion = temp
 
     def create_new_transport_matrix(self):
-        self.new_tm = matrix_copy(self.tm)
+        '''根据调运方案生成新的运输矩阵'''
+        self.new_tm = copy.copy(self.tm)
         for r in range(len(self.new_tm)):
             for c in range(len(self.new_tm[0])):
                 if (r, c) in self.adjust_dict:
                     self.new_tm[r][c] += self.adjust_dict[(r, c)]
 
     def calc_new_fare(self):
+        '''计算新的运输矩阵的总运费'''
         fare = 0
         for r in range(len(self.new_tm)):
             for c in range(len(self.new_tm[0])):
@@ -453,6 +474,7 @@ class ClosedLoop():
         self.fare = fare
 
     def solve(self):
+        '''运行整个闭回路法，接收Exception错误，并停止程序'''
         try:
             self.find_close_loop()
             # print 'go path: {}'.format(self.go_path)
@@ -463,26 +485,18 @@ class ClosedLoop():
             self.calc_new_fare()
         except Exception as e:
             print e
-            sys.exit(0)
-
-
-def matrix_copy(matrix):
-    temp = []
-    for r in range(len(matrix)):
-        _row = []
-        for c in range(len(matrix[0])):
-            _row.append(matrix[r][c])
-        temp.append(_row)
-    return temp
+            sys.exit(1)
 
 
 def show_matrix(matrix):
+    '''展示矩阵'''
     string = list(map(str, matrix))
     res = '\n'.join(string)
     return res
 
 
 def dataset(v=0):
+    '''可供测试的数据集'''
     if v == 0:
         # product == sale
         c = [4, 12, 4, 11, 2, 10, 3, 9, 8, 5, 11, 6]
@@ -590,6 +604,7 @@ def dataset(v=0):
 
 
 def test_min():
+    '''测试最小元素法'''
     c, a, b = dataset(4)
     me = MinimumElement(c, a, b)
     print 'fare matrix:\n{}'.format(show_matrix(me.c))
@@ -617,13 +632,14 @@ def test_min():
 
 
 def test_examine():
+    '''测试位势法'''
     c, a, b = dataset(3)
     me = MinimumElement(c, a, b)
     me.solve()
     me.calc_fare()
     print 'fare: {}'.format(me.fare)
-    _ct = matrix_copy(me.ct)
-    _cf = matrix_copy(me.cf)
+    _ct = copy.copy(me.ct)
+    _cf = copy.copy(me.cf)
     exm = Examine(_ct, _cf)
     error_index = exm.solve_examine()
     print 'fare matrix:\n{}'.format(show_matrix(_cf))
@@ -634,6 +650,7 @@ def test_examine():
 
 
 def test_closed():
+    '''测试闭回路法'''
     c, a, b = dataset(4)
     me = MinimumElement(c, a, b)
     me.solve()
@@ -657,6 +674,7 @@ def test_closed():
 
 
 def main():
+    '''运行整个表上作业法'''
     c, a, b = dataset(8)
     me = MinimumElement(c, a, b)
     print 'fare matrix:\n{}'.format(show_matrix(me.c))
